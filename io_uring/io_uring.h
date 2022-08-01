@@ -42,6 +42,7 @@ struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
+void __io_submit_flush_completions(struct io_ring_ctx *ctx);
 
 static inline bool io_req_ffs_set(struct io_kiocb *req)
 {
@@ -299,6 +300,12 @@ static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 
 	node = wq_stack_extract(&ctx->submit_state.free_list);
 	return container_of(node, struct io_kiocb, comp_list);
+}
+
+static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
+{
+	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
+		__io_submit_flush_completions(ctx);
 }
 
 #endif

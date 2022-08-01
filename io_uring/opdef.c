@@ -33,6 +33,7 @@
 #include "poll.h"
 #include "cancel.h"
 #include "rw.h"
+#include "spawn.h"
 
 static int io_no_issue(struct io_kiocb *req, unsigned int issue_flags)
 {
@@ -487,6 +488,18 @@ const struct io_op_def io_op_defs[] = {
 #else
 		.prep			= io_eopnotsupp_prep,
 #endif
+	},
+	[IORING_OP_CLONE] = {
+		.name			= "CLONE",
+		.audit_skip		= 1,
+		.prep			= io_clone_prep,
+		.issue			= io_clone,
+	},
+	[IORING_OP_EXEC] = {
+		.name			= "EXEC",
+		.audit_skip		= 1,
+		.prep			= io_exec_prep,
+		.issue			= io_exec,
 	},
 };
 

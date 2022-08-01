@@ -2014,7 +2014,7 @@ out_ret:
 	return retval;
 }
 
-static int do_execve(struct filename *filename,
+int do_execve(struct filename *filename,
 	const char __user *const __user *__argv,
 	const char __user *const __user *__envp)
 {

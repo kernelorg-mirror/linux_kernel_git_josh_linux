@@ -91,6 +91,7 @@
 #include "cancel.h"
 #include "net.h"
 #include "notif.h"
+#include "spawn.h"
 
 #include "timeout.h"
 #include "poll.h"
@@ -143,8 +144,6 @@ static void io_dismantle_req(struct io_kiocb *req);
 static void io_clean_op(struct io_kiocb *req);
 static void io_queue_sqe(struct io_kiocb *req);
 
-static void __io_submit_flush_completions(struct io_ring_ctx *ctx);
-
 static struct kmem_cache *req_cachep;
 
 struct sock *io_uring_get_socket(struct file *file)
@@ -159,12 +158,6 @@ struct sock *io_uring_get_socket(struct file *file)
 	return NULL;
 }
 EXPORT_SYMBOL(io_uring_get_socket);
-
-static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
-{
-	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
-		__io_submit_flush_completions(ctx);
-}
 
 static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
 {
@@ -1177,7 +1170,7 @@ void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 		io_put_task(task, task_refs);
 }
 
-static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
+void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_wq_work_node *node, *prev;
@@ -1559,7 +1552,7 @@ static bool io_assign_file(struct io_kiocb *req, unsigned int issue_flags)
 	return !!req->file;
 }
 
-static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
+int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 {
 	const struct io_op_def *def = &io_op_defs[req->opcode];
 	const struct cred *creds = NULL;
@@ -1902,6 +1895,11 @@ static int io_init_req(struct io_ring_ctx *ctx, struct io_kiocb *req,
 			state->need_plug = false;
 			blk_start_plug_nr_ios(&state->plug, state->submit_nr);
 		}
+	}
+
+	if (opcode == IORING_OP_CLONE) {
+		if (unlikely(sqe_flags != REQ_F_LINK || ctx->submit_state.link.head))
+			return -EINVAL;
 	}
 
 	personality = READ_ONCE(sqe->personality);
